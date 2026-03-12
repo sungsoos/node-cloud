@@ -1,13 +1,25 @@
-<h1><%= file.name %></h1>
+<h1>cloud @ sungsoos.kr</h1>
 
-<p>Size: <%= (file.size/1024/1024).toFixed(2) %> MB</p>
+<ul>
 
-<p>SHA256:</p>
+<% folders.forEach(f => { %>
 
-<code><%= file.sha256 %></code>
-
-<br><br>
-
-<a href="/file/<%= file.id %>/download">
-<button>Download</button>
+<li>
+<a href="/f/<%= folder ? folder + "/" + f.name : f.name %>">
+📁 <%= f.name %>
 </a>
+</li>
+
+<% }) %>
+
+<% files.forEach(file => { %>
+
+<li>
+<a href="/file/<%= file.id %>">
+📄 <%= file.name %>
+</a>
+</li>
+
+<% }) %>
+
+</ul>

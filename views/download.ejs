@@ -1,0 +1,16 @@
+<h1><%= file.name %></h1>
+
+<button onclick="download()">Download</button>
+
+<script>
+
+async function download(){
+
+    const r = await fetch("/token/<%= file.id %>")
+    const j = await r.json()
+
+    location.href="/download/"+j.token
+
+}
+
+</script>

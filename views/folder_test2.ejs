@@ -72,31 +72,41 @@
     </head>
     <body>
         <h1>cloud @ sungsoos.kr</h1>
-        <h2>/archive</h2>
+        <h2>/<%= folder %></h2>
 
         <ul>
             <li>
-                <a class="folder" href="/">
+                <a class="folder" href="/<%= parts.slice(0,-1).join('/') %>">
                     <img src="/parent.svg" width="20" height="20" class="icon">
                     <span class="name">..</span>
                 </a>
             </li>
 
-            <% files.forEach(file => { 
-                const ext = file.name.split('.').pop().toLowerCase()
-                const iconPath = "/" + ext + ".svg"
-                const fullPath = iconDir + iconPath
-                const icon = fs.existsSync(fullPath) ? iconPath : "/file.svg"
-                const sizeMB = (file.size / 1024 / 1024).toFixed(2)
-            %>
+            <% folders.forEach(dir => { %>
+                <li>
+                    <a class="folder" href="<%= folder ? folder + '/' + dir.name : dir.name %>">
+                        <img src="/folder.svg" width="20" height="20" class="icon">
+                        <span class="name"><%= dir.name %></span>
+                    </a>
+                </li>
+            <% }) %>
 
-            <li>
-                <a class="folder" href="/file/<%= file.id %>">
-                    <img src="<%= icon %>" width="20" height="20" class="icon">
-                    <span class="name"><%= file.name %></span>
-                    <span class="size"><%= sizeMB %> MB</span>
-                </a>
-            </li>
+            <% files.forEach(file => { %>
+                <% files.forEach(file => { 
+                    const ext = file.name.split('.').pop().toLowerCase()
+                    const iconPath = ext + ".svg"
+                    const icon = fs.existsSync("assets/" + iconPath) ? iconPath : "file.svg"
+                %>
+
+                <li>
+                    <a class="folder" href="/<%= folder ? folder + '/' + file.name : file.name %>">
+                        <img src="/<%= icon %>" width="20" height="20" class="icon">
+                        <span class="name"><%= file.name %></span>
+                        <span class="size"><%= file.sizeHuman %></span>
+                    </a>
+                </li>
+
+                <% }) %>
             <% }) %>
         </ul>
     </body>

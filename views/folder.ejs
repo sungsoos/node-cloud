@@ -61,8 +61,8 @@
         <ul>
             <% folders.forEach(folder => { %>
             <li>
-                <a class="folder" href="/<%= folder %>">
-                    <img src="/folder.svg" alt="folder" height="20" width="20" class="icon"><%= folder %>
+                <a class="folder" href="/<%= folder.name %>">
+                    <img src="/folder.svg" alt="folder" height="20" width="20" class="icon"><%= folder.name %>
                 </a>
             </li>
             <% }) %>

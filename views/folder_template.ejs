@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <title>cloud @ sungsoos.kr</title>
+
+        <style>
+            /* Pretendard */
+            @font-face {
+                font-family: 'Pretendard Variable';
+                font-weight: 45 920;
+                font-style: normal;
+                font-display: swap;
+                src: url('/PretendardVariable.woff2') format('woff2-variations');
+            }
+
+            * {
+                font-family:'Pretendard Variable' !important;
+                scrollbar-width: thin;
+            }
+
+            body {
+                background: #111;
+                color: white;
+                padding: 40px;
+            }
+
+            a {
+                color: #fff;
+                text-decoration: none;
+            }
+
+            ul {
+                list-style: none;
+                padding: 0;
+            }
+
+            /* file row */
+            .folder {
+                background:#1c1c1c;
+                padding: 10px 14px;
+                margin-bottom: 10px;
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+            }
+
+            .folder:hover {
+                background: #2a2a2a;
+            }
+
+            /* icon */
+            .icon {
+                filter: invert();
+                margin-right: 10px;
+            }
+
+            /* filename */
+            .name {
+                flex: 1;
+            }
+
+            /* file size */
+            .size {
+                color: #aaa;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>cloud @ sungsoos.kr</h1>
+        <h2>/<%= folder %></h2>
+
+        <ul>
+            <li>
+                <a class="folder" href="/<%= parts.slice(0,-1).join('/') %>">
+                    <img src="/parent.svg" width="20" height="20" class="icon">
+                    <span class="name">..</span>
+                </a>
+            </li>
+
+            <% folders.forEach(dir => { %>
+                <li>
+                    <a class="folder" href="/<%= parts.concat(dir.name).join('/') %>">
+                        <img src="/folder.svg" width="20" height="20" class="icon">
+                        <span class="name"><%= dir.name %></span>
+                    </a>
+                </li>
+            <% }) %>
+
+            <% files.forEach(file => { %>
+                <% files.forEach(file => { 
+                    const ext = file.name.split('.').pop().toLowerCase()
+                    const iconPath = ext + ".svg"
+                    const icon = fs.existsSync("assets/" + iconPath) ? iconPath : "file.svg"
+                %>
+
+                <li>
+                    <a class="folder" href="/<%= parts.concat(file.name).join('/') %>">
+                        <img src="/<%= icon %>" width="20" height="20" class="icon">
+                        <span class="name"><%= file.name %></span>
+                        <span class="size"><%= file.sizeHuman %></span>
+                    </a>
+                </li>
+
+                <% }) %>
+            <% }) %>
+        </ul>
+    </body>
+</html>

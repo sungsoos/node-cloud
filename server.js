@@ -1,380 +1,186 @@
 const express = require("express")
-const sqlite3 = require("sqlite3").verbose()
 const fs = require("fs")
 const path = require("path")
 const crypto = require("crypto")
-const helmet = require("helmet")
-const chokidar = require("chokidar")
-const { Throttle } = require("stream-throttle")
 
 const app = express()
+
+const PORT = 3000
+const BASE = path.join(__dirname,"files")
 
 app.set("view engine","ejs")
 app.set("views",path.join(__dirname,"views"))
 
-app.use(express.static("public"))
-app.use(helmet())
+app.use(express.static(path.join(__dirname, "assets")))
 
-// ================= DATABASE =================
+const downloads = []
 
-app.use(express.static(path.join(__dirname, 'assets')))
+function createToken(){
 
-const DB_FILE = path.join(__dirname,"db.sqlite")
-
-if(!fs.existsSync(DB_FILE)){
-console.log("Creating database")
-}
-
-const db = new sqlite3.Database(DB_FILE)
-
-db.serialize(()=>{
-
-db.run(`
-CREATE TABLE IF NOT EXISTS files(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-name TEXT,
-path TEXT UNIQUE,
-size INTEGER,
-sha256 TEXT,
-downloads INTEGER DEFAULT 0
-)
-`)
-
-db.run(`
-CREATE TABLE IF NOT EXISTS tokens(
-token TEXT PRIMARY KEY,
-file_id INTEGER,
-ip TEXT,
-created INTEGER,
-expire INTEGER,
-used INTEGER DEFAULT 0
-)
-`)
-
-db.run(`
-CREATE TABLE IF NOT EXISTS logs(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-file_id INTEGER,
-ip TEXT,
-size INTEGER,
-time DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-`)
-
-})
-
-// ================= SETTINGS =================
-
-const base = path.join(__dirname,"files")
-
-const FILE_LIMIT = 50 * 1024 * 1024
-const GLOBAL_LIMIT = 200 * 1024 * 1024
-
-let active = 0
-
-function globalSpeed(){
-return GLOBAL_LIMIT / Math.max(active,1)
-}
-
-// ================= SHA256 =================
-
-function sha256(file){
-
-return new Promise((resolve,reject)=>{
-
-const hash = crypto.createHash("sha256")
-const stream = fs.createReadStream(file)
-
-stream.on("data",d=>hash.update(d))
-stream.on("end",()=>resolve(hash.digest("hex")))
-stream.on("error",reject)
-
-})
+    return crypto.randomBytes(6).toString("base64url")
 
 }
 
-// ================= FILE SCAN =================
+function formatSize(bytes){
 
-async function scan(dir){
+    if(bytes > 1024*1024*1024) return (bytes/1024/1024/1024).toFixed(2)+" GB"
+    if(bytes > 1024*1024) return (bytes/1024/1024).toFixed(2)+" MB"
+    if(bytes > 1024) return (bytes/1024).toFixed(2)+" KB"
 
-const items = fs.readdirSync(dir)
-
-for(const f of items){
-
-const full = path.join(dir,f)
-const stat = fs.statSync(full)
-
-if(stat.isDirectory()){
-await scan(full)
-continue
-}
-
-const rel = path.relative(base,full).replace(/\\/g,"/")
-
-db.get(
-"SELECT id FROM files WHERE path=?",
-[rel],
-async (err,row)=>{
-
-if(!row){
-
-const hash = await sha256(full)
-
-db.run(
-"INSERT INTO files(name,path,size,sha256) VALUES(?,?,?,?)",
-[f,rel,stat.size,hash]
-)
+    return bytes+" B"
 
 }
 
-})
+function listDir(dir){
+
+    const items = fs.readdirSync(dir)
+
+    const folders = []
+    const files = []
+
+    items.forEach(name=>{
+
+        const full = path.join(dir,name)
+        const stat = fs.statSync(full)
+
+        if(stat.isDirectory()){
+
+            folders.push({
+                name
+            })
+
+        }else{
+
+            files.push({
+                name,
+                size:stat.size,
+                sizeHuman:formatSize(stat.size)
+            })
+
+        }
+
+    })
+
+    folders.sort((a,b)=>a.name.localeCompare(b.name))
+    files.sort((a,b)=>a.name.localeCompare(b.name))
+
+    return {folders,files}
 
 }
 
+function chooseTemplate(parts){
+
+    if(!parts.length) return "folder"
+
+    const root = parts[0]
+
+    const custom = "folder_"+root
+    const viewPath = path.join(__dirname,"views",custom+".ejs")
+
+    if(fs.existsSync(viewPath)) return custom
+
+    return "folder"
+
 }
 
-if(fs.existsSync(base)){
-scan(base)
+function renderFolder(req,res,rel){
+
+    const safeRel = path.normalize(rel).replace(/\.\./g,"")
+    const full = path.join(BASE, safeRel)
+    
+    console.log("URL:", rel)
+    console.log("BASE:", BASE)
+    console.log("FULL:", full)
+    console.log("EXISTS:", fs.existsSync(full))
+
+    if(!full.startsWith(BASE)){
+        return res.status(403).send("forbidden")
+    }
+
+    if(!fs.existsSync(full)){
+        return res.status(404).send("not found")
+    }
+
+    const stat = fs.statSync(full)
+
+    if(stat.isFile()){
+
+        const token = createToken()
+
+        downloads.push({
+
+            token,
+            file:rel,
+            ip:req.ip,
+            created:Date.now(),
+            expire:60000,
+            used:false
+
+        })
+
+        return res.redirect("/download/"+token)
+
+    }
+
+    const {folders,files} = listDir(full)
+
+    const parts = rel ? rel.split("/") : []
+
+    const view = chooseTemplate(parts)
+
+    res.render(view,{
+        folder:rel,
+        parts,
+        folders,
+        files,
+        fs
+    })
+
 }
-
-// ================= WATCHER =================
-
-const watcher = chokidar.watch(base,{ignoreInitial:true})
-
-watcher.on("add",async filePath=>{
-
-const stat = fs.statSync(filePath)
-
-const rel = path.relative(base,filePath).replace(/\\/g,"/")
-const name = path.basename(filePath)
-
-const hash = await sha256(filePath)
-
-db.run(
-"INSERT OR IGNORE INTO files(name,path,size,sha256) VALUES(?,?,?,?)",
-[name,rel,stat.size,hash]
-)
-
-console.log("📥 added",rel)
-
-})
-
-watcher.on("unlink",filePath=>{
-
-const rel = path.relative(base,filePath).replace(/\\/g,"/")
-
-db.run("DELETE FROM files WHERE path=?",[rel])
-
-console.log("🗑 removed",rel)
-
-})
-
-watcher.on("change",async filePath=>{
-
-const stat = fs.statSync(filePath)
-
-const rel = path.relative(base,filePath).replace(/\\/g,"/")
-
-const hash = await sha256(filePath)
-
-db.run(
-"UPDATE files SET size=?,sha256=? WHERE path=?",
-[stat.size,hash,rel]
-)
-
-console.log("♻ updated",rel)
-
-})
-
-// ================= INDEX =================
 
 app.get("/",(req,res)=>{
 
-const folders = fs.readdirSync(base).filter(f=>{
-return fs.statSync(path.join(base,f)).isDirectory()
-})
-
-res.render("index",{folders})
+    renderFolder(req,res,"")
 
 })
 
-// ================= FOLDER =================
+app.get("/download/:token",(req,res)=>{
 
-const iconDir = path.join(__dirname, "assets")
+    const token = req.params.token
 
-app.get("/:folder",(req,res)=>{
+    const entry = downloads.find(t=>t.token===token)
 
-const folder = req.params.folder
+    if(!entry) return res.send("token invalid")
 
-db.all(
-"SELECT * FROM files WHERE path LIKE ?",
-[folder + "/%"],
-(err,files)=>{
+    if(entry.used) return res.send("token used")
 
-res.render("folder_"+folder,{
-files,
-folder,
-fs,
-iconDir
-})
+    if(Date.now() > entry.created + entry.expire){
 
-})
+        return res.send("token expired")
 
-})
+    }
 
-// ================= FILE PAGE =================
+    const full = path.join(BASE,entry.file)
 
-app.get("/file/:id",(req,res)=>{
+    if(!fs.existsSync(full)) return res.send("file missing")
 
-db.get(
-"SELECT * FROM files WHERE id=?",
-[req.params.id],
-(err,file)=>{
+    entry.used = true
 
-if(!file) return res.send("File not found")
-
-res.render("file",{file})
+    res.download(full)
 
 })
-
-})
-
-// ================= TOKEN =================
-
-app.get("/file/:id/download",(req,res)=>{
-
-const id = req.params.id
-const ip = req.ip
-
-db.get(
-`SELECT COUNT(*) as c
-FROM logs
-WHERE ip=? AND time > datetime('now','-1 hour')`,
-[ip],
-(err,row)=>{
-
-if(row.c >= 10)
-return res.send("Hourly download limit reached")
-
-const token = crypto.randomBytes(8).toString("hex")
-
-const now = Math.floor(Date.now()/1000)
-
-db.run(
-"INSERT INTO tokens(token,file_id,ip,created,expire) VALUES(?,?,?,?,?)",
-[token,id,ip,now,300],
-()=>{
-
-res.redirect("/dl/"+token)
-
-})
-
-})
-
-})
-
-// ================= DOWNLOAD =================
-
-app.get("/dl/:token",(req,res)=>{
-
-const token = req.params.token
-const ip = req.ip
-
-db.get(
-"SELECT * FROM tokens WHERE token=?",
-[token],
-(err,row)=>{
-
-if(!row) return res.send("Invalid token")
-if(row.used) return res.send("Token used")
-if(row.ip !== ip) return res.send("IP mismatch")
-
-const now = Math.floor(Date.now()/1000)
-
-if(now - row.created > row.expire)
-return res.send("Token expired")
-
-db.get(
-"SELECT * FROM files WHERE id=?",
-[row.file_id],
-(err,file)=>{
-
-if(!file) return res.send("File missing")
-
-const filePath = path.join(base,file.path)
-
-if(!fs.existsSync(filePath))
-return res.send("File missing")
-
-db.run(
-"INSERT INTO logs(file_id,ip,size) VALUES(?,?,?)",
-[file.id,ip,file.size]
-)
-
-db.run(
-"UPDATE files SET downloads=downloads+1 WHERE id=?",
-[file.id]
-)
-
-db.run(
-"UPDATE tokens SET used=1 WHERE token=?",
-[token]
-)
-
-active++
-
-const stream = fs.createReadStream(filePath)
-
-const throttle = new Throttle({
-rate: Math.min(FILE_LIMIT,globalSpeed())
-})
-
-res.setHeader(
-"Content-Disposition",
-'attachment; filename="'+file.name+'"'
-)
-
-stream
-.pipe(throttle)
-.pipe(res)
-.on("finish",()=>{
-
-active--
-
-})
-
-})
-
-})
-
-})
-
-// ================= STATS =================
 
 app.get("/stats",(req,res)=>{
-
-db.all(
-"SELECT * FROM files ORDER BY downloads DESC",
-[],
-(err,files)=>{
-
-db.all(
-"SELECT * FROM logs ORDER BY time DESC LIMIT 100",
-[],
-(err2,logs)=>{
-
-res.render("stats",{files,logs})
-
+    res.json(downloads)
 })
 
+app.use((req,res)=>{
+    const rel = decodeURIComponent(req.path).replace(/^\/+/,"")
+    renderFolder(req,res,rel)
 })
 
-})
+app.listen(PORT,()=>{
 
-// ================= START =================
-
-app.listen(3000,()=>{
-
-console.log("app running on http://localhost:3000")
+    console.log("server running on "+PORT)
 
 })
