@@ -91,11 +91,10 @@
                 </li>
             <% }) %>
 
-            <% files.forEach(file => { %>
-                <% files.forEach(file => { 
-                    const ext = file.name.split('.').pop().toLowerCase()
-                    const iconPath = ext + ".svg"
-                    const icon = fs.existsSync("assets/" + iconPath) ? iconPath : "file.svg"
+            <% files.forEach(file => { 
+                const ext = file.name.split('.').pop().toLowerCase()
+                const iconPath = ext + ".svg"
+                const icon = fs.existsSync("assets/" + iconPath) ? iconPath : "file.svg"
                 %>
 
                 <li>
@@ -105,8 +104,6 @@
                         <span class="size"><%= file.sizeHuman %></span>
                     </a>
                 </li>
-
-                <% }) %>
             <% }) %>
         </ul>
     </body>

@@ -84,10 +84,6 @@ function chooseTemplate(parts){
     const custom = "folder_"+root
     const viewPath = path.join(__dirname,"views",custom+".ejs")
 
-    console.log("root:", root)
-    console.log("viewPath:", viewPath)
-    console.log("exists:", fs.existsSync(viewPath))
-
     if(fs.existsSync(viewPath)) return custom
 
     return "folder"
