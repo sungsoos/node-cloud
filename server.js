@@ -7,13 +7,20 @@ const app = express()
 
 const PORT = 3000
 const BASE = path.join(__dirname,"files")
+const LOG_DIR = path.join(__dirname,'logs');
+const DOWNLOAD_LOG = path.join(LOG_DIR,'downloads.log');
+
+const downloads = []
 
 app.set("view engine","ejs")
 app.set("views",path.join(__dirname,"views"))
 
 app.use(express.static(path.join(__dirname, "assets")))
 
-const downloads = []
+// logs 폴더 없으면 생성
+if(!fs.existsSync(LOG_DIR)){
+    fs.mkdirSync(LOG_DIR);
+}
 
 function createToken(){
 
@@ -87,11 +94,6 @@ function renderFolder(req,res,rel){
 
     const safeRel = path.normalize(rel).replace(/\.\./g,"")
     const full = path.join(BASE, safeRel)
-    
-    console.log("URL:", rel)
-    console.log("BASE:", BASE)
-    console.log("FULL:", full)
-    console.log("EXISTS:", fs.existsSync(full))
 
     if(!full.startsWith(BASE)){
         return res.status(403).send("forbidden")
@@ -166,12 +168,13 @@ app.get("/download/:token",(req,res)=>{
 
     entry.used = true
 
+    const logtext = `[${Date.now()}]: IP: ${req.ip}, FILE: ${full}, TOKEN: ${token}`;
+    
+    fs.appendFileSync(DOWNLOAD_LOG,logtext);
+    console.log(logtext);
+
     res.download(full)
 
-})
-
-app.get("/stats",(req,res)=>{
-    res.json(downloads)
 })
 
 app.use((req,res)=>{
