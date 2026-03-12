@@ -1,0 +1,13 @@
+<h1><%= file.name %></h1>
+
+<p>Size: <%= (file.size/1024/1024).toFixed(2) %> MB</p>
+
+<p>SHA256:</p>
+
+<code><%= file.sha256 %></code>
+
+<br><br>
+
+<a href="/file/<%= file.id %>/download">
+<button>Download</button>
+</a>

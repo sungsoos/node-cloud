@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Stats</title>
+
+<style>
+
+body{
+background:#111;
+color:#eee;
+font-family:Arial;
+margin:40px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th,td{
+padding:8px;
+border-bottom:1px solid #333;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>📊 Download Stats</h1>
+
+<h2>Top Files</h2>
+
+<table>
+
+<tr>
+<th>File</th>
+<th>Downloads</th>
+</tr>
+
+<% files.forEach(file => { %>
+
+<tr>
+<td><%= file.name %></td>
+<td><%= file.downloads %></td>
+</tr>
+
+<% }) %>
+
+</table>
+
+<h2>Recent Downloads</h2>
+
+<table>
+
+<tr>
+<th>File ID</th>
+<th>IP</th>
+<th>Size</th>
+<th>Time</th>
+</tr>
+
+<% logs.forEach(log => { %>
+
+<tr>
+<td><%= log.file_id %></td>
+<td><%= log.ip %></td>
+<td><%= (log.size/1024/1024).toFixed(2) %> MB</td>
+<td><%= log.time %></td>
+</tr>
+
+<% }) %>
+
+</table>
+
+<p>
+
+<a href="/">Back</a>
+
+</p>
+
+</body>
+
+</html>

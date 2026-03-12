@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Movies</title>
+
+<link rel="stylesheet" href="/css/movies.css">
+
+</head>
+
+<body>
+
+<h1>🎬 Movies</h1>
+
+<div class="grid">
+
+<% files.forEach(file => { %>
+
+<div class="movie">
+
+<a href="/file/<%= file.id %>">
+<%= file.name %>
+</a>
+
+<p>
+<%= (file.size/1024/1024).toFixed(1) %> MB
+</p>
+
+</div>
+
+<% }) %>
+
+</div>
+
+</body>
+</html>
