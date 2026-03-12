@@ -2,8 +2,7 @@
 files/
 db.sqlite
 logs/
-tokens.db
-logs.db
+folder_*
 
 # Logs
 logs

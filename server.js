@@ -79,7 +79,7 @@ function chooseTemplate(parts){
 
     if(!parts.length) return "folder"
 
-    const root = parts[0]
+    const root = parts[0].toLowerCase()
 
     const custom = "folder_"+root
     const viewPath = path.join(__dirname,"views",custom+".ejs")
