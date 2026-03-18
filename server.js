@@ -5,7 +5,7 @@ const crypto = require("crypto")
 
 const app = express()
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const BASE = path.join(__dirname,"files")
 const LOG_DIR = path.join(__dirname,'logs');
 const DOWNLOAD_LOG = path.join(LOG_DIR,'downloads.log');
