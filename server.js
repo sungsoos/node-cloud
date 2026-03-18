@@ -181,4 +181,6 @@ app.use((req,res)=>{
     renderFolder(req,res,rel)
 })
 
-app.listen(8080, "0.0.0.0");
+app.listen(8080, '0.0.0.0', () => {
+  console.log('Server running')
+})
