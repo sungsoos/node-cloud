@@ -5,7 +5,6 @@ const crypto = require("crypto")
 
 const app = express()
 
-const PORT = process.env.PORT || 8080;
 const BASE = path.join(__dirname,"files")
 const LOG_DIR = path.join(__dirname,'logs');
 const DOWNLOAD_LOG = path.join(LOG_DIR,'downloads.log');
@@ -182,6 +181,4 @@ app.use((req,res)=>{
     renderFolder(req,res,rel)
 })
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(8080, "0.0.0.0");
